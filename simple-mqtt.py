@@ -1,10 +1,33 @@
 import paho.mqtt.client as mqtt
 import struct
 import json
+import pyrebase
+import time
+config = {
+    "apiKey": "AIzaSyBwfvkoffX7MNGrWrf7nYYQ9wmOwS5_yaI",
+    "authDomain": "stpwin-home.firebaseapp.com",
+    "databaseURL": "https://stpwin-home.firebaseio.com",
+    "storageBucket": "stpwin-home.appspot.com",
+    "messagingSenderId": "796798924451",
+    "appId": "1:796798924451:web:f0c42c137da2bdb69cf116"
+}
+
+firebase = pyrebase.initialize_app(config)
+
+db = firebase.database()
 
 
-MQTT_HOST = "192.168.1.3"
-MQTT_PORT = 1883
+def dbUpdatePressure(pressure):
+    db.child("device").child("bmp280-01").child(
+        "pressure").child(int(time.time())).set(pressure)
+
+
+def dbUpdateTemperature(temperature):
+    db.child("device").child("bmp280-01").child(
+        "temperature").child(int(time.time())).set(temperature)
+
+MQTT_HOST = "isysforce.myddns.me"
+MQTT_PORT = 8883
 
 mqttclient = mqtt.Client()
 mqttclient.connect(MQTT_HOST, MQTT_PORT)
@@ -83,6 +106,7 @@ def on_message_bmpTemperature(mosq, obj, msg):
     try:
         result = struct.unpack('f', msg.payload)[0]
         print("%s > %.0f \u00B0C" % (msg.topic, result))
+        dbUpdateTemperature(result)
         # print("%s > %s" % (msg.topic, msg.payload))
     except:
         print("on_message_temperature unpack fail")
@@ -94,6 +118,7 @@ def on_message_pressure(mosq, obj, msg):
         pressurehPa = result / 100.0
         print("%s > %.0f hPa" % (msg.topic, pressurehPa))
         print("Approx. Altitude: %.0f m" % calcAltitude(pressurehPa, 1013.25))
+        dbUpdatePressure(pressurehPa)
         # print("%s > %s" % (msg.topic, msg.payload))
     except:
         print("on_message_pressure unpack fail")
